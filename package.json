@@ -1,0 +1,20 @@
+{
+  "name": "telegram-uptimer-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that keeps user-submitted URLs alive and rewards users for completing tasks.",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "express": "^4.18.2",
+    "telegraf": "^4.17.0"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "keywords": ["telegram", "uptimer", "bot", "telegraf", "express"],
+  "author": "Gabimaru",
+  "license": "MIT"
+}
