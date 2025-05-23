@@ -6,13 +6,13 @@ const axios = require('axios');
 const bot = new Telegraf('8102472940:AAEVvK-SV0e56QoSeq8lWlNs-cN6I-BdZMs'); // Replace with your bot token
 const CREATOR_ID = 8095961856; // Replace with your Telegram user ID
 const MAX_URLS = 3;
+
 const REQUIRED_CHANNELS = [
   '@gabimarutechchannel',
-  '@tgsclservice',
-  '@gtechchanel',
-  '@iwilldecidelater',
   '@iwilldecidelater'
 ];
+
+const TASK_CHANNELS = ['@tgsclservice', '@gtechchanel'];
 
 let users = {};
 const dataFile = 'users.json';
@@ -21,22 +21,36 @@ if (fs.existsSync(dataFile)) {
   users = JSON.parse(fs.readFileSync(dataFile));
 }
 
-// Helper to save users
 const saveUsers = () => fs.writeFileSync(dataFile, JSON.stringify(users, null, 2));
 
-// Middleware to check if user is subscribed to all channels
-const checkSubscriptions = async (ctx, next) => {
+// Express setup
+const app = express();
+app.get("/", (_, res) => res.send("Bot is alive."));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Express server ready."));
+
+// Self ping every 4.5 minutes
+setInterval(() => {
+  axios.get(`https://telegram-uptimer-bot.onrender.com`).catch(() => {});
+}, 270000);
+
+// Telegram Bot
+
+bot.start(async (ctx) => {
+  const userId = ctx.from.id;
+
+  // Check required channels
   for (const channel of REQUIRED_CHANNELS) {
     try {
-      const res = await ctx.telegram.getChatMember(channel, ctx.from.id);
-      if (['left', 'kicked'].includes(res.status)) {
+      const res = await ctx.telegram.getChatMember(channel, userId);
+      if (!res || ['left', 'kicked'].includes(res.status)) {
         return ctx.reply(
           `❗ You must join all required channels to use this bot.`,
           {
             reply_markup: {
               inline_keyboard: [
                 REQUIRED_CHANNELS.map((ch) => [{ text: `Join ${ch}`, url: `https://t.me/${ch.replace('@', '')}` }]),
-                [{ text: '✅ I Have Joined', callback_data: 'check_join' }]
+                [{ text: '✅ I Have Joined', callback_data: 'check_join_start' }]
               ]
             }
           }
@@ -46,30 +60,57 @@ const checkSubscriptions = async (ctx, next) => {
       continue;
     }
   }
-  return next();
-};
 
-// Set up express server to keep bot alive
-const app = express();
-app.get("/", (_, res) => res.send("Bot is alive."));
-app.listen(process.env.PORT || 3000, () => console.log("Express server ready."));
+  // Check task channels
+  for (const channel of TASK_CHANNELS) {
+    try {
+      const res = await ctx.telegram.getChatMember(channel, userId);
+      if (!res || ['left', 'kicked'].includes(res.status)) {
+        return ctx.reply(
+          `❗ You must also join the task channels to use this bot.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                TASK_CHANNELS.map((ch) => [{ text: `Join ${ch}`, url: `https://t.me/${ch.replace('@', '')}` }]),
+                [{ text: '✅ I Have Joined Tasks', callback_data: 'check_join_start' }]
+              ]
+            }
+          }
+        );
+      }
+    } catch {
+      continue;
+    }
+  }
 
-bot.start(checkSubscriptions, async (ctx) => {
-  const userId = ctx.from.id;
+  // Init user if new
   if (!users[userId]) {
     users[userId] = { urls: [], points: 0 };
     saveUsers();
   }
-  return ctx.reply(`Welcome ${ctx.from.first_name}! Use /add <url> to start.`);
+
+  return ctx.reply(
+    `👋 Welcome ${ctx.from.first_name}!\n\nUse the bot with these commands:\n\n` +
+    `/add <url> - Add a new URL\n` +
+    `/list - Show your added URLs\n` +
+    `/remove <url> - Remove a URL\n` +
+    `/tasks - Do tasks to earn extra slots\n` +
+    `/start - Restart & see help\n\n` +
+    `You can add up to ${MAX_URLS + users[userId].points} URLs.`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Join Support Channel', url: 'https://t.me/gabimarutechchannel' }]]
+      }
+    }
+  );
 });
 
-bot.action('check_join', (ctx) => {
+bot.action('check_join_start', (ctx) => {
   ctx.answerCbQuery();
   return ctx.reply('✅ Re-run your command now.');
 });
 
-// Add URL
-bot.command('add', checkSubscriptions, (ctx) => {
+bot.command('add', async (ctx) => {
   const userId = ctx.from.id;
   const url = ctx.message.text.split(' ')[1];
   if (!url || !url.startsWith('http')) return ctx.reply('❌ Please provide a valid URL.');
@@ -90,7 +131,6 @@ bot.command('add', checkSubscriptions, (ctx) => {
   return ctx.reply(`✅ URL added. You now have ${userUrls.length}/${urlLimit} URLs.`);
 });
 
-// List URLs
 bot.command('list', (ctx) => {
   const userId = ctx.from.id;
   if (userId === CREATOR_ID) {
@@ -105,7 +145,6 @@ bot.command('list', (ctx) => {
   return ctx.reply(`Your URLs:\n${userUrls.join('\n')}`);
 });
 
-// Remove URL
 bot.command('remove', (ctx) => {
   const userId = ctx.from.id;
   const url = ctx.message.text.split(' ')[1];
@@ -119,17 +158,13 @@ bot.command('remove', (ctx) => {
   return ctx.reply('✅ URL removed.');
 });
 
-// Task menu
 bot.command('tasks', (ctx) => {
   return ctx.reply(
     'Complete these tasks to earn more slots:',
     {
       reply_markup: {
         inline_keyboard: [
-          [
-            { text: 'Join @taskchannel1', url: 'https://t.me/taskchannel1' },
-            { text: 'Join @taskchannel2', url: 'https://t.me/taskchannel2' }
-          ],
+          TASK_CHANNELS.map((ch) => [{ text: `Join ${ch}`, url: `https://t.me/${ch.replace('@', '')}` }]),
           [{ text: '✅ I Joined', callback_data: 'task_done' }]
         ]
       }
@@ -147,7 +182,7 @@ bot.action('task_done', (ctx) => {
   return ctx.reply(`🎉 Great! You now have ${MAX_URLS + users[userId].points} URL slots.`);
 });
 
-// Ping URLs every 5 minutes
+// Keep pinging user URLs
 setInterval(() => {
   Object.values(users).forEach(({ urls }) => {
     urls.forEach(url => {
