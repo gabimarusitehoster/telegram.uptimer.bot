@@ -3,7 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const axios = require('axios');
 
-const bot = new Telegraf('8102472940:AAEVvK-SV0e56QoSeq8lWlNs-cN6I-BdZMs'); // Replace with your bot token
+const bot = new Telegraf('7569185358:AAFx78AbFVPOSwSumNOugeDuCycCg2mdXB0'); // Replace with your bot token
 const CREATOR_ID = 8095961856; // Replace with your Telegram user ID
 const MAX_URLS = 3;
 
