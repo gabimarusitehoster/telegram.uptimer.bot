@@ -23,7 +23,7 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Self-ping to prevent Render from sleeping
 setInterval(() => {
-  axios.get("https://telegram.uptimer.bot-1.onrender.com").catch(() => {});
+  axios.get("https://telegram-uptimer-bot-1.onrender.com").catch(() => {});
 }, 270000); // 4.5 minutes
 
 // Check if user is in all channels
