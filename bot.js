@@ -9,7 +9,7 @@ const MAX_URLS = 3;
 
 const REQUIRED_CHANNELS = [
   '@gabimarutechchannel',
-  '@iwilldecidelater'
+  '@taskchannel'
 ];
 
 const TASK_CHANNELS = ['@tgsclservice', '@gtechchanel'];
